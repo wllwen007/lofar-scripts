@@ -11,7 +11,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='concat_and_split')
     parser.add_argument('--tc', help='starting time index', type=int, default=0)
     parser.add_argument('outmsroot', help='Output MS root name', type=str)
-    parser.add_argument('inmsfile', help='Measurement sets', nargs='+', type=str)
+    parser.add_argument('inmsfile', help='Measurement sets', type=str)
     args = parser.parse_args()
     
     
