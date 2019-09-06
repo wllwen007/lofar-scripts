@@ -9,7 +9,7 @@ if __name__ == '__main__':
     
     import argparse
     parser = argparse.ArgumentParser(description='concat_and_split')
-    parser.add_argument('--tc', help='starting time index', type=int, default=0)
+    parser.add_argument('--tc', help='set starting time index', type=int, default=0)
     parser.add_argument('outmsroot', help='Output MS root name', type=str)
     parser.add_argument('inmsfile', help='Measurement sets', type=str)
     args = parser.parse_args()
@@ -18,7 +18,6 @@ if __name__ == '__main__':
     # Create time-chunks
     print('Splitting in time...')
     tc = 0
-    
     
     ms = args.inmsfile
     groupname = args.outmsroot
@@ -37,7 +36,9 @@ if __name__ == '__main__':
         print('%02i - Splitting timerange %f %f' % (tc, timerange[0], timerange[-1]))
         t1 = t.query('TIME >= ' + str(timerange[0]) + ' && TIME <= ' + str(timerange[-1]), sortlist='TIME,ANTENNA1,ANTENNA2')
         splitms = groupname+'_TC%02i.MS' % tc
-        #lib_util.check_rm(splitms)
+        if os.path.exists(splitms):
+            print('output ms',splitms,'already exists, not overwriting')
+            continue
         t1.copy(splitms, True)
         t1.close()
         tc += 1
