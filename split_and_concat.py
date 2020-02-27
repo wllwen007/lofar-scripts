@@ -41,6 +41,9 @@ if __name__ == '__main__':
             # get basename of this ms
 	    inmsroot = inms.split('/')[-1].split('.')[0]
             print('input ms root: ',inmsroot)
+            # fra code T00.MS etc
+            if inmsroot[0] == 'T':
+                inmsroot = outmsroot+'_'+inmsroot
 
             ### split in freq
             subnchan=args.subnchan
@@ -55,13 +58,21 @@ if __name__ == '__main__':
             allmsi = []
             for ii,i in enumerate(range(0,nchan,subnchan)):
                 outmsband = '{prefix}{inmsroot}{suffix}_BAND{ii:03d}.MS'.format(ii=ii, inmsroot=inmsroot, suffix=suffix,prefix=prefix)
-		print('Out MS band',outmsband)
-                cmd= 'DPPP numthreads=32 msin={inms} msin.datacolumn={datacolumn} msout={outmsband} steps=[filter] filter.type=filter  filter.startchan={i:d} filter.nchan={subnchan:d}'.format(i=i,subnchan=subnchan, inms=inms, outmsband=outmsband, datacolumn=datacolumn)
+		#print('Out MS band',outmsband)
+                #cmd= 'DPPP numthreads=32 msin={inms} msin.datacolumn={datacolumn} msout={outmsband} steps=[filter] filter.type=filter  filter.startchan={i:d} filter.nchan={subnchan:d}'.format(i=i,subnchan=subnchan, inms=inms, outmsband=outmsband, datacolumn=datacolumn)
                 print(inms+' -> '+outmsband)
-		if not args.dryrun:
-                    print(cmd)
-                    os.system(cmd)
+		#if not args.dryrun:
+                    #print(cmd)
+                    #os.system(cmd)
                 allmsi.append(outmsband)
+                
+            startchans = [str(i) for i in range(0,nchan,subnchan)]
+            # run DPPP in one - with filter so read is done once...
+            cmd = 'DPPP msin={inms} msout=. steps=[split] split.steps=[filter,out] split.replaceparms=[filter.startchan,out.name] filter.startchan=[{startchans}] filter.nchan={subnchan} out.name=[{msouts}]'.format(inms=inms, msouts=','.join(allmsi), startchans=','.join(startchans), subnchan=subnchan)
+            print(cmd)
+            if not args.dryrun:
+                os.system(cmd)
+                
                 
 	    # add this list to the list of all
             allms.append(allmsi)
