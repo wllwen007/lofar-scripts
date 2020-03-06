@@ -57,7 +57,7 @@ if __name__ == '__main__':
 	    # keep a list of the bands created for this timechunk
             allmsi = []
             for ii,i in enumerate(range(0,nchan,subnchan)):
-                outmsband = '{prefix}{inmsroot}{suffix}_BAND{ii:03d}.MS'.format(ii=ii, inmsroot=inmsroot, suffix=suffix,prefix=prefix)
+                outmsband = '{prefix}{inmsroot}{suffix}_BAND{ii:03d}.ms'.format(ii=ii, inmsroot=inmsroot, suffix=suffix,prefix=prefix)
 		#print('Out MS band',outmsband)
                 #cmd= 'DPPP numthreads=32 msin={inms} msin.datacolumn={datacolumn} msout={outmsband} steps=[filter] filter.type=filter  filter.startchan={i:d} filter.nchan={subnchan:d}'.format(i=i,subnchan=subnchan, inms=inms, outmsband=outmsband, datacolumn=datacolumn)
                 print(inms+' -> '+outmsband)
@@ -68,7 +68,7 @@ if __name__ == '__main__':
                 
             startchans = [str(i) for i in range(0,nchan,subnchan)]
             # run DPPP in one - with filter so read is done once...
-            cmd = 'DPPP msin={inms} msout=. steps=[split] split.steps=[filter,out] split.replaceparms=[filter.startchan,out.name] filter.startchan=[{startchans}] filter.nchan={subnchan} out.name=[{msouts}]'.format(inms=inms, msouts=','.join(allmsi), startchans=','.join(startchans), subnchan=subnchan)
+            cmd = 'DPPP msin={inms} msin.datacolumn={datacolumn} msout=. steps=[split] split.steps=[filter,out] split.replaceparms=[filter.startchan,out.name] filter.startchan=[{startchans}] filter.nchan={subnchan} out.name=[{msouts}]'.format(inms=inms, datacolumn=datacolumn, msouts=','.join(allmsi), startchans=','.join(startchans), subnchan=subnchan)
             print(cmd)
             if not args.dryrun:
                 os.system(cmd)
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	# for each of the bands created above
         for bandi in range(allms.shape[1]):
         
-            mergems = '{outmsroot}_BAND{ii:03d}.MS'.format(ii=bandi, outmsroot=outmsroot)
+            mergems = '{outmsroot}_BAND{ii:03d}.ms'.format(ii=bandi, outmsroot=outmsroot)
             
                     
             if os.path.isdir(mergems):
