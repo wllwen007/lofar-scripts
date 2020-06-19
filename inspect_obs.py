@@ -11,8 +11,13 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 verbose = False
 
+projcode = 'LT14_004'
+#projcode = 'LT10_010'
+
 workdir = '/data2/wwilliams/projects/lofar_obs/lt10_010'
 workdir = '/home/wendy/projects/lofar_obs/lt10_010'
+workdir = '/home/wendy/projects/lofar_obs/'+projcode.lower()
+
 
 cdir = os.getcwd()
 
@@ -73,7 +78,8 @@ for irow, row in enumerate(rows):
     robsid = int(rh.text.strip().replace('L',''))
     if robsid not in obsids:
         continue
-    if 'LT10_010' not in cols[0].text:
+    #if 'LT10_010' not in cols[0].text:
+    if projcode not in cols[0].text:
         continue
     cols = [ele.text.strip() for ele in cols]
     data.append([ele for ele in cols if ele]) 
@@ -230,7 +236,7 @@ emailbody = r'''<html>
   </head>
 <base href="" />
 <body>
-<b>LT10_010: observations L<<SID2>>/<<SID1>>/<<SID0>> successful</b><br>
+<b><<PID>>: observations L<<SID2>>/<<SID1>>/<<SID0>> successful</b><br>
 <br>
 Dear Colleague <br>
 <br>
@@ -282,6 +288,7 @@ for i, obsid in enumerate(obsids):
     emailbody = emailbody.replace('<<SID{i:d}>>'.format(i=i), str(sobsids[i]))
     emailbody = emailbody.replace('<<COMPL{i:d}>>'.format(i=i), str(compls[i]))
     emailbody = emailbody.replace('<<TARGET{i:d}>>'.format(i=i), str(targets[i]))
+emailbody = emailbody.replace('<<PID>>',projcode)
 emailbody = emailbody.replace('<<<INSPECTTABLE>>>',inspecttabletxt)
 emailbody = emailbody.replace('href="','href="https://proxy.lofar.eu/inspect/HTML/')
 
