@@ -122,7 +122,7 @@ for obsid in obsids:
     print('- cobalt error log length', len(cobaltlog), )
     if verbose:
         print(cobaltlog)
-    elif len(cobaltlog) > 519:
+    elif len(cobaltlog) > 4400:
         print('this is a longer cobalt log: (will add log to url list to open)')
         #print(cobaltlog)
         urls.append("https://proxy.lofar.eu/inspect/{id:d}/rtcp-{id:d}.errors".format(id=obsid))
