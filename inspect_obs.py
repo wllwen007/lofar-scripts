@@ -5,7 +5,8 @@ import re
 import numpy as np
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
-
+import smtplib
+from email.mime.text import MIMEText
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -308,6 +309,29 @@ s = input('y/(n)? ')
 
 if not s.lower() == 'n':
     os.system('google-chrome '+' '.join(urls)+ ' &')
+
+
+# open email body to edit
+os.system('vim L{i:d}-inspect.html'.format(i=obsid))
+
+print('send email:')
+s = input('y/(n)? ')
+
+
+if not s.lower() == 'n':
+    
+    with open('L{i:d}-inspect.html'.format(i=obsid),'r'):
+        slines = f.readlines()
+    
+    msg = MIMEText(slines)
+    me = 'wwilliams@strw.leidenuniv.nl'
+    you = 'ro-helpdesk@astron.nl'
+    msg['Subject'] = 'ROHD-2516 Project LT14_004'
+    msg['From'] = me
+    msg['To'] = you
+    s = smtplib.SMTP('localhost')
+    s.sendmail(me, [you], msg.as_string())
+    s.quit()
 
 
 os.chdir(cdir)
