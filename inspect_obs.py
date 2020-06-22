@@ -348,7 +348,7 @@ print('send email:')
 s = input('y/(n)? ')
 
 
-if not s.lower() == 'n':
+if s.lower() == 'y':
     
     with open('L{i:d}-inspect.html'.format(i=obsid),'r') as  f:
         slines = f.readlines()
@@ -369,8 +369,7 @@ if not s.lower() == 'n':
     pw = keyring.get_password('PY_STRW_MAIL', username) 
     user = pwd.getpwuid(os.getuid())[4].replace(',','')
     me = '{name} <{user}@strw.leidenuniv.nl>'.format(name=user,user=username)
-    you = 'wndywllms@gmail.com'
-    #you = 'ro-helpdesk@astron.nl'
+    you = 'ro-helpdesk@astron.nl'
     msg['Subject'] = 'ROHD-2516 Project LT14_004'
     msg['From'] = me
     msg['Date'] = datetime.datetime.now().strftime( "%d/%m/%Y %H:%M" )
