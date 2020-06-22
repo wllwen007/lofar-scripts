@@ -2,12 +2,17 @@
 import os
 import sys
 import re
+import pwd
 import numpy as np
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import ssl
+import datetime
 import urllib3
+import keyring
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 verbose = False
@@ -256,13 +261,16 @@ Performance of the system: Completeness of data recorded was <<COMPL0>>, <<COMPL
 <br>
 L<<ID0>> - <<TARGET0>><br>
 <li>RS406, RS409 strong DAB interference</li>
+<<COMMENT0>>
 <br>
 L<<ID1>> - <<TARGET1>><br>
 <li>bright source(s) in sidelobes</li>
 <li>RS406, RS409 strong DAB interference</li>
+<<COMMENT1>>
 <br>
 L<<ID2>> - <<TARGET2>><br>
 <li>RS406, RS409 strong DAB interference</li>
+<<COMMENT2>>
 <br>
 <b>Data processing:</b> completed<br>
 <br>
@@ -294,25 +302,47 @@ emailbody = emailbody.replace('<<<INSPECTTABLE>>>',inspecttabletxt)
 emailbody = emailbody.replace('href="','href="https://proxy.lofar.eu/inspect/HTML/')
 
 
-with open('L{i:d}-inspect.html'.format(i=obsid),'w') as f:
-    f.write(emailbody)
-
-
-urls.append('L{i:d}-inspect.html'.format(i=obsid))
-#urls=['L{i:d}-inspect.html'.format(i=obsid)]
-
-print('email body saved to inspect.html')
 
 print('open these urls:')
 print('\n'.join(urls))
 s = input('y/(n)? ')
 
 if not s.lower() == 'n':
-    os.system('google-chrome '+' '.join(urls)+ ' &')
+    os.system('google-chrome '+' '.join(urls)+ ' > /dev/null 2>&1 &')
 
 
 # open email body to edit
-os.system('vim L{i:d}-inspect.html'.format(i=obsid))
+with open('addcomments.tmp','w' ) as f:
+    for i, obsid in enumerate(obsids):
+        f.write('L'+str(obsid)+' - \n')
+os.system('vim addcomments.tmp'.format(i=obsid))
+
+
+with open('addcomments.tmp','r' ) as f:
+    lines = f.readlines()
+comments = ['','','']
+for line in lines:
+    C = line.strip()
+    i = obsids.index(int(C.split('-')[0].strip().replace('L','')))
+    comment = C.split('-')[1].replace('-','').strip()
+    if len(comment) > 0:
+    
+        comments[i] += '<li>{comment}</li>\n'.format(comment=comment)
+    
+for i, obsid in enumerate(obsids):
+    emailbody = emailbody.replace('<<COMMENT{i:d}>>'.format(i=i), comments[i])
+    
+
+with open('L{i:d}-inspect.html'.format(i=obsid),'w') as f:
+    f.write(emailbody)
+os.system('google-chrome '+'L{i:d}-inspect.html'.format(i=obsid)+ ' &')
+
+
+#urls.append('L{i:d}-inspect.html'.format(i=obsid))
+#urls=['L{i:d}-inspect.html'.format(i=obsid)]
+
+print('email body saved to L{i:d}-inspect.html'.format(i=obsid))
+
 
 print('send email:')
 s = input('y/(n)? ')
@@ -320,18 +350,34 @@ s = input('y/(n)? ')
 
 if not s.lower() == 'n':
     
-    with open('L{i:d}-inspect.html'.format(i=obsid),'r'):
+    with open('L{i:d}-inspect.html'.format(i=obsid),'r') as  f:
         slines = f.readlines()
     
-    msg = MIMEText(slines)
-    me = 'wwilliams@strw.leidenuniv.nl'
-    you = 'ro-helpdesk@astron.nl'
+
+    msg = MIMEMultipart('alternative')
+    # Record the MIME types of both parts - text/plain and text/html.
+    #part1 = MIMEText(text, 'plain')
+    part2 = MIMEText(emailbody, 'html')
+
+    # Attach parts into message container.
+    # According to RFC 2046, the last part of a multipart message, in this case
+    # the HTML message, is best and preferred.
+    #msg.attach(part1)
+    msg.attach(part2)
+    
+    username = keyring.get_password('PY_STRW_MAIL', 'user_key')
+    pw = keyring.get_password('PY_STRW_MAIL', username) 
+    user = pwd.getpwuid(os.getuid())[4].replace(',','')
+    me = '{name} <{user}@strw.leidenuniv.nl>'.format(name=user,user=username)
+    you = 'wndywllms@gmail.com'
+    #you = 'ro-helpdesk@astron.nl'
     msg['Subject'] = 'ROHD-2516 Project LT14_004'
     msg['From'] = me
+    msg['Date'] = datetime.datetime.now().strftime( "%d/%m/%Y %H:%M" )
     msg['To'] = you
-    s = smtplib.SMTP('localhost')
-    s.sendmail(me, [you], msg.as_string())
-    s.quit()
-
+    with  smtplib.SMTP_SSL('smtp.strw.leidenuniv.nl', port=465) as s:
+        s.login(username, pw)
+        s.sendmail(me, [you], msg.as_string())
+        
 
 os.chdir(cdir)
