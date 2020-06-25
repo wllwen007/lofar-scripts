@@ -17,6 +17,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 verbose = False
 
+cycle = 14
 projcode = 'LT14_004'
 #projcode = 'LT10_010'
 
@@ -29,11 +30,105 @@ cdir = os.getcwd()
 
 os.chdir(workdir)
 
+
+def get_obsid(P,d):
+    
+    print('Looking up obsid for',P,d)
+    
+    r = requests.get('https://proxy.lofar.eu/inspect/HTML/fullindex.html', verify=False)
+    inspecttablehtml = r.text
+
+
+    soup = BeautifulSoup(inspecttablehtml, 'html.parser')
+    table = soup.find('table')
+    rows = table.find_all('tr')
+
+    header = rows[0]
+    rows = rows[1:]
+
+    data = []
+    selind = []
+    selrows = []
+    selrobsids = []
+    for irow, row in enumerate(rows):
+        cols = row.find_all('td')
+        rh = row.find('th')
+        robsid = int(rh.text.strip().replace('L',''))
+        #if robsid not in obsids:
+            #continue
+        #if 'LT10_010' not in cols[0].text:
+        if projcode not in cols[0].text:
+            continue
+        cols = [ele.text.strip() for ele in cols]
+        data.append([robsid]+[ele for ele in cols if ele]) 
+        selind.append(irow)
+        selrows.append(row)
+        selrobsids.append(robsid)
+        
+    data = np.array(data)
+    data_pind = data[:,2] == P
+    
+    data = data[data_pind,:]
+    
+    dates = data[:,8]
+    
+    
+    # match the date
+    dates = np.array([d[0:10].replace('-','') for d in dates])
+    dates_ind = dates == d
+    print (dates_ind)
+    if sum(dates_ind) != 1:
+        if sum(dates_ind) > 1:
+            print('more than 1 dates match')
+            print(dates[dates_ind])
+            print(data[dates_ind])
+        else:
+            print('no dates match')
+            print(data)
+            return 
+    
+    
+    obsid = int(data[dates_ind,0][0])
+
+    print('Found obsid:', obsid)
+    
+    return obsid
+
+momcode = ''
+
 args = sys.argv[1:]
 if len(args) == 1:
-    # specifying main id -- normal format is -4, 0, +6
-    obsid = int(args[0].replace('L',''))
-    obsids = [obsid+6, obsid, obsid-4]
+    # we're specifying a pointing/date and need to look up the obsid
+    if 'P' in args[0]:
+        # P000+03P000+08_120200623  ... copy past has this format
+        C = args[0][0:16]
+        Cd = args[0][16:]
+        p = C[0:C.index('_')]
+        p1 = p[0:4]
+        p2 = p[7:11]
+        
+        P = p1+p2+'REF'
+        
+        obsid = get_obsid(P,Cd)
+        
+        momcode = C
+        
+        obsids = [obsid+6, obsid, obsid-4]
+        
+        
+    # we're specifying an obs id
+    elif 'L' in args[0]:
+        # specifying main id -- normal format is -4, 0, +6
+        obsid = int(args[0].replace('L',''))
+        obsids = [obsid+6, obsid, obsid-4]
+    # we're specifying an obs id without the L
+    else:
+        # specifying main id -- normal format is -4, 0, +6
+        obsid = int(args[0])
+        obsids = [obsid+6, obsid, obsid-4]
+    
+    
+    
 elif len(args) == 3:
     # specify all 3 obsids if something is different
     obsids = [int(arg.replace('L','')) for arg in args]
@@ -246,9 +341,9 @@ emailbody = r'''<html>
 <br>
 Dear Colleague <br>
 <br>
-The following message contains information regarding a LOFAR Cycle 10 project for which you are listed as the contact author. Please forward this information to the suitable individuals. <br>
+The following message contains information regarding a LOFAR Cycle <<CYCLE>> project for which you are listed as the contact author. Please forward this information to the suitable individuals. <br>
 <br>
-We would like to inform you that an observation related to your LOFAR Cycle 10 project has been performed. Please find detailed information below:<br>
+We would like to inform you that an observation related to your LOFAR Cycle <<CYCLE>> project has been performed. Please find detailed information below:<br>
 <br>
 <b>General notes:</b> The inspection plots do not show non standard behaviour of stations over the whole observations. For all observations station dynamic spectra are available to help to establish the RFI and scintillation situation at station level.<br>
 <br>
@@ -298,6 +393,7 @@ for i, obsid in enumerate(obsids):
     emailbody = emailbody.replace('<<COMPL{i:d}>>'.format(i=i), str(compls[i]))
     emailbody = emailbody.replace('<<TARGET{i:d}>>'.format(i=i), str(targets[i]))
 emailbody = emailbody.replace('<<PID>>',projcode)
+emailbody = emailbody.replace('<<CYCLE>>',str(cycle))
 emailbody = emailbody.replace('<<<INSPECTTABLE>>>',inspecttabletxt)
 emailbody = emailbody.replace('href="','href="https://proxy.lofar.eu/inspect/HTML/')
 
@@ -343,6 +439,7 @@ os.system('google-chrome '+'L{i:d}-inspect.html'.format(i=obsid)+ ' &')
 
 print('email body saved to L{i:d}-inspect.html'.format(i=obsid))
 
+print('Please ingest data',momcode)
 
 print('send email:')
 s = input('y/(n)? ')
