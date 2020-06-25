@@ -100,6 +100,10 @@ args = sys.argv[1:]
 if len(args) == 1:
     # we're specifying a pointing/date and need to look up the obsid
     if 'P' in args[0]:
+        rep = ''
+        if 'REP' in args[0]:
+            args[0] = args[0].replace('REP','')
+            rep = 'REP'
         # P000+03P000+08_120200623  ... copy past has this format
         C = args[0][0:16]
         Cd = args[0][16:]
@@ -111,7 +115,7 @@ if len(args) == 1:
         
         obsid = get_obsid(P,Cd)
         
-        momcode = C
+        momcode = C+rep
         
         obsids = [obsid+6, obsid, obsid-4]
         
