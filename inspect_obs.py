@@ -25,6 +25,11 @@ workdir = '/data2/wwilliams/projects/lofar_obs/lt10_010'
 workdir = '/home/wendy/projects/lofar_obs/lt10_010'
 workdir = '/home/wendy/projects/lofar_obs/'+projcode.lower()
 
+idm = 4
+idp = 6
+
+idm = 2
+idp = 2
 
 cdir = os.getcwd()
 
@@ -117,19 +122,19 @@ if len(args) == 1:
         
         momcode = C+rep
         
-        obsids = [obsid+6, obsid, obsid-4]
+        obsids = [obsid+idp, obsid, obsid-idm]
         
         
     # we're specifying an obs id
     elif 'L' in args[0]:
         # specifying main id -- normal format is -4, 0, +6
         obsid = int(args[0].replace('L',''))
-        obsids = [obsid+6, obsid, obsid-4]
+        obsids = [obsid+idp, obsid, obsid-idm]
     # we're specifying an obs id without the L
     else:
         # specifying main id -- normal format is -4, 0, +6
         obsid = int(args[0])
-        obsids = [obsid+6, obsid, obsid-4]
+        obsids = [obsid+idp, obsid, obsid-idm]
     
     
     
