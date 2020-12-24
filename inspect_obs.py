@@ -19,6 +19,11 @@ verbose = False
 
 cycle = 14
 projcode = 'LT14_004'
+#projcode = 'LT14_003'  # deep
+if projcode == 'LT14_004':
+    rohd = 2516
+elif projcode == 'LT14_003':
+    rohd = 2515
 #projcode = 'LT10_010'
 
 workdir = '/data2/wwilliams/projects/lofar_obs/lt10_010'
@@ -36,7 +41,7 @@ cdir = os.getcwd()
 os.chdir(workdir)
 
 
-def get_obsid(P,d):
+def get_obsid(P,d,matchpartial=False):
     
     print('Looking up obsid for',P,d)
     
@@ -71,16 +76,26 @@ def get_obsid(P,d):
         selrobsids.append(robsid)
         
     data = np.array(data)
-    data_pind = data[:,2] == P
+    
+    # match the observation name
+    if not matchpartial:
+        data_pind = (data[:,2] == P)
+        if np.sum(data_pind) == 0:
+            print ('Observation',P,'does not exist')
+            sys.exit(1)
+    else:
+        
+        data_pind = [P in d for d in data[:,2] ]
+        if np.sum(data_pind) == 0:
+            print ('Observation',P,'does not exist')
+            sys.exit(1)
     
     data = data[data_pind,:]
     
-    dates = data[:,8]
-    
-    
     # match the date
+    dates = data[:,8]
     dates = np.array([d[0:10].replace('-','') for d in dates])
-    dates_ind = dates == d
+    dates_ind = (dates == d)
     print (dates_ind)
     if sum(dates_ind) != 1:
         if sum(dates_ind) > 1:
@@ -90,7 +105,7 @@ def get_obsid(P,d):
         else:
             print('no dates match')
             print(data)
-            return 
+            sys.exit(1) 
     
     
     obsid = int(data[dates_ind,0][0])
@@ -110,9 +125,15 @@ if len(args) == 1:
             args[0] = args[0].replace('REP','')
             rep = 'REP'
         # P000+03P000+08_120200623  ... copy past has this format
-        C = args[0][0:16]
-        Cd = args[0][16:]
-        p = C[0:C.index('_')]
+        if '_' in args[0]:
+            C = args[0][0:16]
+            Cd = args[0][16:]
+            p = C[0:C.index('_')]
+        # P000+03P000+08_120200623  ... copy past has this format
+        else:
+            C = args[0][0:14]
+            Cd = args[0][14:]
+            p = C[0:14]
         p1 = p[0:4]
         p2 = p[7:11]
         
@@ -124,6 +145,36 @@ if len(args) == 1:
         
         obsids = [obsid+idp, obsid, obsid-idm]
         
+    # special case for deep observations
+    elif ('ELAIS' in args[0]) :
+        
+        rep = ''
+        if 'REP' in args[0]:
+            args[0] = args[0].replace('REP','')
+            rep = 'REP'
+        # ELAIS-RUN1-2020111220201112
+        C = args[0][0:19]
+        Cd = args[0][19:]
+        P = 'ELAIS-N1'
+        obsid = get_obsid(P,Cd, matchpartial=True)
+        obsids = [obsid+idp, obsid, obsid-idm]
+        
+        
+    # special case for deep observations
+    elif  ('Lockman' in args[0]):
+        
+        rep = ''
+        if 'REP' in args[0]:
+            args[0] = args[0].replace('REP','')
+            rep = 'REP'
+        # ELAIS-RUN1-2020111220201112
+        C = args[0][0:9]
+        Cd = args[0][10:]
+        print(C,Cd)
+        
+        P = args[0].split('_')[0]
+        obsid = get_obsid(P,Cd, matchpartial=True)
+        obsids = [obsid+idp, obsid, obsid-idm]
         
     # we're specifying an obs id
     elif 'L' in args[0]:
@@ -207,8 +258,16 @@ for row in inspecttable:
 
 
 # match the target names to the obsids
-targets = [data[selrobsids.index(obsid)][1] for obsid in obsids]
-compls = [data[selrobsids.index(obsid)][3] for obsid in obsids]
+present = np.array([ obsid in selrobsids for obsid in obsids])
+obsids = [ obsid for obsid in obsids if obsid in selrobsids ]
+target_missing = ~np.all(present)
+targets = []
+compls = []
+for obsid in obsids:
+    if obsid in selrobsids:
+        targets.append(data[selrobsids.index(obsid)][1])
+        compls.append(data[selrobsids.index(obsid)][3])
+    
 
 # get list of urls to open
 ## some random subbands
@@ -355,6 +414,8 @@ The following message contains information regarding a LOFAR Cycle <<CYCLE>> pro
 We would like to inform you that an observation related to your LOFAR Cycle <<CYCLE>> project has been performed. Please find detailed information below:<br>
 <br>
 <b>General notes:</b> The inspection plots do not show non standard behaviour of stations over the whole observations. For all observations station dynamic spectra are available to help to establish the RFI and scintillation situation at station level.<br>
+<<<MISSING>>>
+<<<OBSCOMMENT>>>
 <br>
 <b>Observations:</b> <br>
         <table>
@@ -401,6 +462,10 @@ for i, obsid in enumerate(obsids):
     emailbody = emailbody.replace('<<SID{i:d}>>'.format(i=i), str(sobsids[i]))
     emailbody = emailbody.replace('<<COMPL{i:d}>>'.format(i=i), str(compls[i]))
     emailbody = emailbody.replace('<<TARGET{i:d}>>'.format(i=i), str(targets[i]))
+if target_missing:
+    emailbody = emailbody.replace('<<<MISSING>>>', 'NOTE: one calibrator observation is missing but the target and one calibrator is present.<br>')
+else:
+    emailbody = emailbody.replace('<<<MISSING>>>','')
 emailbody = emailbody.replace('<<PID>>',projcode)
 emailbody = emailbody.replace('<<CYCLE>>',str(cycle))
 emailbody = emailbody.replace('<<<INSPECTTABLE>>>',inspecttabletxt)
@@ -420,19 +485,30 @@ if not s.lower() == 'n':
 with open('addcomments.tmp','w' ) as f:
     for i, obsid in enumerate(obsids):
         f.write('L'+str(obsid)+' - \n')
+    f.write('general:\n')
 os.system('vim addcomments.tmp'.format(i=obsid))
 
 
 with open('addcomments.tmp','r' ) as f:
     lines = f.readlines()
 comments = ['','','']
+obscomment=''
 for line in lines:
     C = line.strip()
-    i = obsids.index(int(C.split('-')[0].strip().replace('L','')))
-    comment = C.split('-')[1].replace('-','').strip()
-    if len(comment) > 0:
+    if 'general' in C:
+        obscomment = C.replace('general:','').strip()
+    else:
+        i = obsids.index(int(C.split('-')[0].strip().replace('L','')))
+        comment = C.split('-')[1].replace('-','').strip()
+        if len(comment) > 0:
+        
+            comments[i] += '<li>{comment}</li>\n'.format(comment=comment)
     
-        comments[i] += '<li>{comment}</li>\n'.format(comment=comment)
+
+if obscomment != '':
+    emailbody = emailbody.replace('<<<OBSCOMMENT>>>', obscomment+'<br>')
+else:
+    emailbody = emailbody.replace('<<<OBSCOMMENT>>>','')
     
 for i, obsid in enumerate(obsids):
     emailbody = emailbody.replace('<<COMMENT{i:d}>>'.format(i=i), comments[i])
@@ -451,10 +527,10 @@ print('email body saved to L{i:d}-inspect.html'.format(i=obsid))
 print('Please ingest data',momcode)
 
 print('send email:')
-s = input('y/(n)? ')
+s = input('(y)/n? ')
 
 
-if s.lower() == 'y':
+if s.lower() != 'n':
     
     with open('L{i:d}-inspect.html'.format(i=obsid),'r') as  f:
         slines = f.readlines()
@@ -476,13 +552,17 @@ if s.lower() == 'y':
     user = pwd.getpwuid(os.getuid())[4].replace(',','')
     me = '{name} <{user}@strw.leidenuniv.nl>'.format(name=user,user=username)
     you = 'ro-helpdesk@astron.nl'
-    msg['Subject'] = 'ROHD-2516 Project LT14_004'
+    msg['Subject'] = 'ROHD-{rohd} Project {proj}'.format(rohd=rohd, proj=projcode)
     msg['From'] = me
     msg['Date'] = datetime.datetime.now().strftime( "%d/%m/%Y %H:%M" )
     msg['To'] = you
     with  smtplib.SMTP_SSL('smtp.strw.leidenuniv.nl', port=465) as s:
         s.login(username, pw)
         s.sendmail(me, [you], msg.as_string())
+        
+    print('Email sent')
+    
+    os.system('rm addcomments.tmp')
         
 
 os.chdir(cdir)
